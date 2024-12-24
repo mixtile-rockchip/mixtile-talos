@@ -1,0 +1,31 @@
+name: u-boot-prepare
+variant: scratch
+shell: /toolchain/bin/bash
+dependencies:
+  - stage: base
+steps:
+  - sources:
+      - url: https://gitlab.collabora.com/hardware-enablement/rockchip-3588/u-boot/-/archive/{{ .uboot_version }}/u-boot-{{ .uboot_version }}.tar.bz2
+        destination: u-boot.tar.bz2
+        sha256: "{{ .uboot_sha256 }}"
+        sha512: "{{ .uboot_sha512 }}"
+    prepare:
+      - |
+        mkdir -p /usr/bin \
+          && ln -sf /toolchain/bin/env /usr/bin/env \
+          && ln -sf /toolchain/bin/python3 /toolchain/bin/python
+
+        pip3 install pyelftools setuptools
+        mkdir -p /src/uboot
+        tar xf u-boot.tar.bz2 --strip-components=1 -C /src/uboot
+finalize:
+  - from: /src
+    to: /src
+  - from: /toolchain
+    to: /toolchain
+  - from: /usr
+    to: /usr
+  - from: /bin
+    to: /bin
+  - from: /lib
+    to: /lib

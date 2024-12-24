@@ -1,8 +1,13 @@
-name: sbc-board
+name: talos-sbc-mixtile-blade3
 variant: scratch
+shell: /toolchain/bin/bash
 dependencies:
-  - stage: board
-  - stage: u-boot
+  - stage: base
+  - stage: u-boot-mixtile-blade3
+    platform: linux/arm64
+  - stage: kernel-mixtile-blade3
+    platform: linux/arm64
+  - stage: overlay-blade3
     platform: linux/arm64
   - stage: profiles
 finalize:

@@ -1,0 +1,45 @@
+name: kernel-mixtile-blade3
+variant: scratch
+shell: /toolchain/bin/bash
+dependencies:
+  - stage: kernel-prepare
+steps:
+  - env:
+      ARCH: {{ if eq .ARCH "aarch64"}}arm64{{ else }}unsupported{{ end }}
+    build:
+    - |
+      cd /src/kernel
+      make -j $(nproc) rockchip/rk3588-blade3-v101-linux.dtb
+    install:
+      - |
+        cd /src/kernel
+        make -j $(nproc) rockchip/rk3588-blade3-v101-linux.dtb
+
+        mkdir -p /rootfs/boot
+        mkdir -p /rootfs/dtb
+        mkdir -p /rootfs/certs
+        cp /src/kernel/certs/signing_key.x509 /rootfs/certs/signing_key.x509
+        case $ARCH in
+            arm64)
+                mv arch/arm64/boot/Image /rootfs/boot/vmlinuz
+                cd ./arch/arm64/boot/dts
+                for vendor in $(find . -not -path . -type d); do
+                  dest="/rootfs/dtb/$vendor"
+                  mkdir -v $dest
+                  find ./$vendor/* -type f -name "*.dtb" -exec cp {} $dest \;
+                done
+                cd -
+            ;;
+            *)
+                echo "unsupported arch ${ARCH}"
+                exit 1
+            ;;
+        esac
+
+        export KERNELRELEASE=$(cat include/config/kernel.release)
+        make -j $(nproc) modules_install DEPMOD=/toolchain/bin/depmod INSTALL_MOD_PATH=/rootfs INSTALL_MOD_STRIP=1
+        depmod -b /rootfs $KERNELRELEASE
+        unlink /rootfs/lib/modules/$KERNELRELEASE/build
+finalize:
+  - from: /rootfs
+    to: /
