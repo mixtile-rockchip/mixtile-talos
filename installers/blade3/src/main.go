@@ -31,12 +31,19 @@ type blade3ExtraOptions struct{}
 
 func (i *blade3Installer) GetOptions(extra blade3ExtraOptions) (overlay.Options, error) {
 	kernelArgs := []string{
-		"cma=128MB",
-		"console=tty0",
-		"console=ttyS9,115200",
-		"console=ttyS2,115200",
 		"sysctl.kernel.kexec_load_disabled=1",
 		"talos.dashboard.disabled=1",
+		"slab_nomerge",
+		"earlycon=uart8250,mmio32,0xfeb50000",
+		"console=ttyFIQ0,1500000n8",
+		"consoleblank=0",
+		"console=ttyS2,1500000n8",
+		"console=tty1",
+		"loglevel=7",
+		"cgroup_enable=cpuset",
+		"swapaccount=1",
+		"irqchip.gicv3_pseudo_nmi=0",
+		"coherent_pool=2M",
 	}
 
 	return overlay.Options{

@@ -1,24 +1,25 @@
 name: kernel-mixtile-blade3
 variant: scratch
-shell: /toolchain/bin/bash
+shell: /bin/bash
 dependencies:
-  - stage: kernel-prepare
+  - stage: kernel-build
 steps:
   - env:
       ARCH: {{ if eq .ARCH "aarch64"}}arm64{{ else }}unsupported{{ end }}
     build:
     - |
       cd /src/kernel
+      export ARCH=arm64
+      export CROSS_COMPILE=aarch64-linux-gnu-
       make -j $(nproc) rockchip/rk3588-blade3-v101-linux.dtb
     install:
       - |
         cd /src/kernel
-        make -j $(nproc) rockchip/rk3588-blade3-v101-linux.dtb
-
+        export ARCH=arm64
+        export CROSS_COMPILE=aarch64-linux-gnu-
         mkdir -p /rootfs/boot
         mkdir -p /rootfs/dtb
         mkdir -p /rootfs/certs
-        cp /src/kernel/certs/signing_key.x509 /rootfs/certs/signing_key.x509
         case $ARCH in
             arm64)
                 mv arch/arm64/boot/Image /rootfs/boot/vmlinuz

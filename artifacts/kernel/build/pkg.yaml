@@ -1,0 +1,36 @@
+name: kernel-build
+variant: scratch
+shell: /bin/bash
+dependencies:
+  - stage: kernel-prepare
+steps:
+  - env:
+      CARCH: {{ if eq .ARCH "aarch64"}}arm64{{ else }}unsupported{{ end }}
+      ARCH: {{ if eq .ARCH "aarch64"}}arm64{{ else }}unsupported{{ end }}
+      KBUILD_CFLAGS: -Wno-error
+    prepare:
+      - |
+        cd /src/kernel
+        cp -v /pkg/config-${CARCH} .config
+        cp -v /pkg/certs/* certs/
+        
+    build:
+      - |
+        cd /src/kernel
+        export ARCH=arm64
+        export CROSS_COMPILE=aarch64-linux-gnu-
+        ls -l /usr/bin/awk
+        ls -l scripts/ld-version.sh
+        make -j$(nproc) Image
+        make -j$(nproc) modules
+finalize:
+  - from: /src
+    to: /src
+  - from: /usr
+    to: /usr
+  - from: /bin
+    to: /bin
+  - from: /lib
+    to: /lib
+  - from: /etc
+    to: /etc
