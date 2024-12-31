@@ -18,6 +18,13 @@ steps:
         rm linux.tar.gz
 
         cd /src/kernel
+        mv /var/lib/dpkg/info/libc-bin.* /tmp/
+        # rm /var/lib/dpkg/info/libc-bin.*
+
+        # dpkg --remove --force-remove-reinstreq libc-bin
+        # dpkg --purge libc-bi
+        # apt install libc-bi
+        # mv /tmp/libc-bin.* /var/lib/dpkg/info/
         # the BSP kernel triggers a bunch of -Werror conditions
         # and I cannot figure out KCFLAGS etc to do this properly, so ignore everything
         sed -i 's/KBUILD_CFLAGS   := -Wall/KBUILD_CFLAGS   := -Wno-error/' Makefile

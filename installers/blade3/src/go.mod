@@ -1,4 +1,4 @@
-module blade3
+module rk3588
 
 go 1.22.3
 

@@ -10,6 +10,11 @@ dependencies:
   - stage: overlay-blade3
     platform: linux/arm64
   - stage: profiles
+steps:
+  - prepare:
+      - |
+        mkdir -p /rootfs/artifacts/arm64/dtb/rockchip
+        cp /dtb/rockchip/rk3588*.dtb /rootfs/artifacts/arm64/dtb/rockchip/
 finalize:
   - from: /rootfs
     to: /

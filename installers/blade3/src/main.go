@@ -6,30 +6,51 @@ package main
 
 import (
 	_ "embed"
+	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
-
 	"github.com/siderolabs/go-copy/copy"
 	"github.com/siderolabs/talos/pkg/machinery/overlay"
 	"github.com/siderolabs/talos/pkg/machinery/overlay/adapter"
 	"golang.org/x/sys/unix"
+	"os"
+	"path/filepath"
 )
 
 const (
-	off int64 = 512 * 64
-	dtb       = "rockchip/rk3588-blade3-v101-linux.dtb"
+	ubootOffset int64 = 512 * 64
 )
 
 func main() {
-	adapter.Execute(&blade3Installer{})
+	adapter.Execute[rk3588ExtraOpts](&RK3588Installer{})
 }
 
-type blade3Installer struct{}
+type RK3588Installer struct{}
 
-type blade3ExtraOptions struct{}
+type rk3588ExtraOpts struct {
+	Board   string `json:"board"`
+	Chipset string `json:"chipset"`
+}
 
-func (i *blade3Installer) GetOptions(extra blade3ExtraOptions) (overlay.Options, error) {
+func ChipsetName(o rk3588ExtraOpts) string {
+	if o.Chipset != "" {
+		return o.Chipset
+	}
+	switch o.Board {
+	case "rock-5a":
+		return "rk3588s"
+	case "rock-5b":
+		return "rk3588"
+	case "blade3-v101-linux":
+		return "rk3588"
+	}
+	return ""
+}
+
+func (i *RK3588Installer) GetOptions(extra rk3588ExtraOpts) (overlay.Options, error) {
+	if extra.Board == "" {
+		return overlay.Options{}, errors.New("board variant required")
+	}
+
 	kernelArgs := []string{
 		"sysctl.kernel.kexec_load_disabled=1",
 		"talos.dashboard.disabled=1",
@@ -47,7 +68,7 @@ func (i *blade3Installer) GetOptions(extra blade3ExtraOptions) (overlay.Options,
 	}
 
 	return overlay.Options{
-		Name:       "blade3",
+		Name:       extra.Board,
 		KernelArgs: kernelArgs,
 		PartitionOptions: overlay.PartitionOptions{
 			Offset: 2048 * 10,
@@ -55,62 +76,46 @@ func (i *blade3Installer) GetOptions(extra blade3ExtraOptions) (overlay.Options,
 	}, nil
 }
 
-func (i *blade3Installer) Install(options overlay.InstallOptions[blade3ExtraOptions]) error {
-	var err error
+func (i *RK3588Installer) Install(options overlay.InstallOptions[rk3588ExtraOpts]) error {
+	if options.ExtraOptions.Board == "" {
+		return errors.New("board variant required")
+	}
+	if options.ExtraOptions.Chipset == "" {
+		return errors.New("chipset variant required")
+	}
 
-	var (
-		uBootBin = filepath.Join(options.ArtifactsPath, "arm64/u-boot/mixtile-blade3/u-boot-rockchip.bin")
-	)
+	var f *os.File
+	f, err := os.OpenFile(options.InstallDisk, os.O_RDWR|unix.O_CLOEXEC, 0o666)
+	if err != nil {
+		return fmt.Errorf("opening install disk: %w", err)
+	}
+	defer f.Close() //nolint:errcheck
 
-	err = uBootLoaderInstall(uBootBin, options.InstallDisk)
+	uboot, err := os.ReadFile(filepath.Join(options.ArtifactsPath, fmt.Sprintf("arm64/u-boot/mixtile-blade3/u-boot-rockchip.bin")))
+	if err != nil {
+		return fmt.Errorf("reading u-boot: %w", err)
+	}
+
+	if _, err = f.WriteAt(uboot, ubootOffset); err != nil {
+		return fmt.Errorf("writing u-boot: %w", err)
+	}
+
+	// NB: In the case that the block device is a loopback device, we sync here
+	// to ensure that the file is written before the loopback device is
+	// unmounted.
+	err = f.Sync()
 	if err != nil {
 		return err
 	}
 
+	dtb := filepath.Join("rockchip", fmt.Sprintf("rk3588-blade3-v101-linux.dtb"))
 	src := filepath.Join(options.ArtifactsPath, "arm64/dtb", dtb)
-	dst := filepath.Join(options.MountPrefix, "boot/EFI/dtb", dtb)
+	dst := filepath.Join(options.MountPrefix, "/boot/EFI/dtb", dtb)
 
-	err = copyFileAndCreateDir(src, dst)
-	if err != nil {
-		return err
-	}
-
-	return nil
-
-}
-
-func copyFileAndCreateDir(src, dst string) error {
-	err := os.MkdirAll(filepath.Dir(dst), 0o600)
-
+	err = os.MkdirAll(filepath.Dir(dst), 0o600)
 	if err != nil {
 		return err
 	}
 
 	return copy.File(src, dst)
-}
-
-func uBootLoaderInstall(uBootBin, installDisk string) error {
-	var f *os.File
-
-	f, err := os.OpenFile(installDisk, os.O_RDWR|unix.O_CLOEXEC, 0o666)
-	if err != nil {
-		return fmt.Errorf("failed to open %s: %w", installDisk, err)
-	}
-
-	defer f.Close() //nolint:errcheck
-
-	uboot, err := os.ReadFile(uBootBin)
-	if err != nil {
-		return err
-	}
-
-	if _, err = f.WriteAt(uboot, off); err != nil {
-		return err
-	}
-
-	// NB: In the case that the block device is a loopback device, we sync here
-	// to esure that the file is written before the loopback device is
-	// unmounted.
-	err = f.Sync()
-	return err
 }

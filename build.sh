@@ -7,7 +7,7 @@ export USERNAME=buyuliang
 export TALOS_VERSION=v1.7.4
 export KERNEL_VARIANT=bsp
 export REALKTEK_FIRMWARE_EXTENSION_IMAGE=ghcr.io/siderolabs/realtek-firmware:20240513@sha256:4ca40c2836c1cdb5105456186afd880925d72e81ee6b0ff69a40c9c05b7b74a4
-# echo xxx | docker login ghcr.io -u buyuliang --password-stdin
+echo  | docker login ghcr.io -u buyuliang --password-stdin
 make talos-sbc-mixtile-blade3 kernel-mixtile-blade3 PUSH=true
 # make talos-kernel-rk3588-bsp talos-sbc-rk3588-bsp PUSH=true
 
@@ -101,3 +101,105 @@ make talos-sbc-mixtile-blade3 kernel-mixtile-blade3 PUSH=true
     #         --overlay-option="board=${{ matrix.board.name }}" \
     #         --overlay-option="chipset=${{ matrix.board.chipset }}" \
     #         --base-installer-image="ghcr.io/buyuliang/talos-rk3588:${{ env.SBC_RK3588_TAG }}-${{ matrix.board.name }}"
+
+
+
+
+
+
+
+
+# 1 make target-talos-sbc-rk3588 : overlay for RK3588
+#     make target-talos-sbc-rk3588
+#     make target-talos-sbc-rk3588 PUSH=ture
+# 2 make target-talos-kernel-rk3588 : kernel for RK3588
+#     make target-talos-kernel-rk3588
+#     make target-talos-kernel-rk3588 PUSH=ture
+# 3 Clone upstream siderolabs/talos repo
+#     git clone xxx
+# 4 Modify hack/modules-arm64.txt in the Talos repo based on your kernel
+# 5 In Talos repo, make imager PKG_KERNEL=<image from step (2)>
+#     make imager PKG_KERNEL=ghcr.io/buyuliang/kernel-mixtile-blade3:949e1a9-dirty TAG=949e1a9-dirty
+#     make imager PKG_KERNEL=ghcr.io/buyuliang/kernel-mixtile-blade3:949e1a9-dirty TAG=949e1a9-dirty PUSH=true
+
+# 6 Run your imager image to produce a bootable .raw.xz image
+
+
+# docker run --rm -t -v ./_out:/out -v /dev:/dev --privileged <imager image from step (5)> \
+#   installer --arch arm64 \
+#     --base-installer-image="ghcr.io/siderolabs/installer:v1.7.4" \
+#     --overlay-name=rk3588 \
+#     --overlay-image=<overlay image from step (1)> \
+#     --overlay-option="board=<your board>" \
+#     --overlay-option="chipset=<rk3588/rk3588s>" \
+#     --system-extension-image=<realtek firmware etc>
+
+# 7 Push the installer image
+#     crane push _out/installer-arm64.tar <registry ref>
+
+# 8 Run the imager to produce a flashable image using the installer
+
+# docker run --rm -t -v ./_out:/out -v /dev:/dev --privileged ghcr.io/buyuliang/imager:v0.1-bsp-01 \
+# metal --arch arm64 \
+#   --overlay-image=ghcr.io/buyuliang/talos-sbc-mixtile-blade3:v0.1 \
+#   --overlay-name=blade3 \
+#   --overlay-option="board=blade3" \
+#   --overlay-option="chipset=rk3588" \
+#   --base-installer-image=ghcr.io/buyuliang/installer:v0.1
+
+
+# docker run --rm -t -v ./_out:/out -v /dev:/dev --privileged <imager image from step (5)> \
+# metal --arch arm64 \
+#   --overlay-image=<overlay image from step (1)> \
+#   --overlay-name=rk3588 \
+#   --overlay-option="board=<your board>" \
+#   --overlay-option="chipset=<rk3588/rk3588s>" \
+#   --base-installer-image=<installer image from (7)>
+
+
+# docker run --platform=linux/arm64 --rm -it \
+#       -v ./_out:/out \
+#       -v /dev:/dev \
+#       --privileged \
+#     ghcr.io/buyuliang/imager:v0.1-bsp \
+#      installer --arch arm64 \
+#       --base-installer-image=ghcr.io/siderolabs/installer:v1.7.4 \
+#       --overlay-image=ghcr.io/buyuliang/talos-sbc-mixtile-blade3:v0.1
+#       --overlay-name=rk3588 \
+#         --overlay-option="board=blade3" \
+#         --overlay-option="chipset=rk3588" \
+#       --overlay-image=ghcr.io/buyuliang/talos-sbc-mixtile-blade3:v0.1
+
+# docker run --platform=linux/arm64 --rm -t \
+#     -v ./_out:/out \
+#     -v /dev:/dev \
+#     --privileged \
+#     ghcr.io/buyuliang/imager:v1.0-38-g608a79c-bsp \
+#     installer --arch arm64 \
+#         --base-installer-image=ghcr.io/siderolabs/installer:v1.7.4 \
+#         --overlay-name=blade3 \
+#         --overlay-option="board=blade3" \
+#         --overlay-option="chipset=rk3588" \
+#         --overlay-image=ghcr.io/buyuliang/talos-sbc-mixtile-blade3:v0.2 \
+#         --system-extension-image="ghcr.io/siderolabs/realtek-firmware:20240513@sha256:4ca40c2836c1cdb5105456186afd880925d72e81ee6b0ff69a40c9c05b7b74a4"
+
+# docker run --platform=linux/arm64 --rm -t \
+#     -v ./_out:/out \
+#     -v /dev:/dev \
+#     --privileged \
+#     ghcr.io/buyuliang/imager:v0.1-bsp-01 \s
+#     installer --arch arm64 \
+#         --base-installer-image=ghcr.io/siderolabs/installer:v1.7.4 \
+#         --overlay-name=blade3 \
+#         --overlay-option="board=blade3" \
+#         --overlay-option="chipset=rk3588" \
+#         --overlay-image=ghcr.io/buyuliang/talos-sbc-mixtile-blade3:v0.2 \
+#         --system-extension-image="ghcr.io/siderolabs/realtek-firmware:20240513@sha256:4ca40c2836c1cdb5105456186afd880925d72e81ee6b0ff69a40c9c05b7b74a4"
+
+
+
+
+
+# make  imager PKG_KERNEL="ghcr.io/buyuliang/kernel-mixtile-blade3:v0.2" TAG=v0.1-bsp-01 PLATFORM=linux/arm64 INSTALLER_ARCH=targetarch PUSH=true
+
+# docker run --rm -t -v ./_out:/out -v /dev:/dev --privileged ghcr.io/buyuliang/imager:v0.1-bsp-01 metal --arch arm64   --overlay-image=ghcr.io/buyuliang/talos-sbc-mixtile-blade3:v0.2   --overlay-name=blade3   --overlay-option="board=blade3"   --overlay-option="chipset=rk3588"   --base-installer-image=ghcr.io/buyuliang/installer:v0.1

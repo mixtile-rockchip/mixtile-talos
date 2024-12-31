@@ -20,6 +20,7 @@ steps:
         mkdir -p /rootfs/boot
         mkdir -p /rootfs/dtb
         mkdir -p /rootfs/certs
+        cp /src/kernel/certs/signing_key.x509 /rootfs/certs/signing_key.x509
         case $ARCH in
             arm64)
                 mv arch/arm64/boot/Image /rootfs/boot/vmlinuz

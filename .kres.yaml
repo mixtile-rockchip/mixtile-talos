@@ -3,6 +3,7 @@ kind: pkgfile.Build
 spec:
   targets:
     - talos-sbc-mixtile-blade3
+    - kernel-mixtile-blade3
   extraBuildArgs:
     - PKGS_PREFIX
     - PKGS
