@@ -219,7 +219,6 @@ if [ $TALOS_SERIES_FLAG ]; then
     pushd $TALOS_SRC_DIR && reverse_patches "$TALOS_SERIES_FILE" "$TALOS_PATCH_DIR" && popd
 fi
 
-exit 0
 pushd $OUTPUT_DIR
 
 docker run --rm -t -v ./_out:/out -v /dev:/dev --privileged --platform=linux/arm64  ghcr.io/$USERNAME/imager:v1.7.4 \
