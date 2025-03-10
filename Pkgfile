@@ -1,21 +1,3 @@
 # syntax = ghcr.io/siderolabs/bldr:v0.3.0
 
 format: v1alpha2
-
-vars:
-  # renovate: datasource=github-tags extractVersion=^v(?<version>.*)$ depName=u-boot/u-boot
-  uboot_version: ef0ae64c1505e063f1952a1d69c7f97e904848c5 # 2023.07-rc4-g46349e27
-  uboot_sha256: d871da86329fcd5439e30fab7eb5838abc14ac80c00f0f819e2026992642fa32
-  uboot_sha512: f2064b2aec9e44ee9799b928784e8451a60cda62e7ebf2564ce467f4cddcbf2f5829f69a8464b3e3a794383f78df8a43969c3409d5ec29600bdf6da6f5114204
-
-  # renovate: datasource=git-refs versioning=git depName=https://github.com/rockchip/rkbin
-  rkbin_ref: a2a0b89b6c8c612dca5ed9ed8a68db8a07f68bc0
-  rkbin_sha256: 9df375316869daadbf874410f4097591c32cc2dca5a30fd328ea7a1cd8f8b6a8
-  rkbin_sha512: 715253b5ef5c7fbcbce8478d4dea5ad3d1b4b738da437b5f0e9b31eed20f9bcb86cab082e4c04c69b42b6ffcc2cbb1a31079b33b968bb76826ff0dd4f83043e1
-
-  linux_bsp_version: 5.10.160
-  linux_bsp_ref: 9fb8c4cc0ec516870dea431c83e2d546bb57df7d
-  linux_bsp_sha256: eed1c82c5500f8408ba38940977afff12a98a92b0a0d43addb33ea5da57f0118
-  linux_bsp_sha512: 1cee5a5b1de26935e5403147fdc394d38942d277dcc0c831348a3a1733c03a5e455951345789fecba96f43b1004cef240c6324ded445548815792f38a2e0096a
-labels:
-  org.opencontainers.image.source: https://github.com/milas/talos-sbc-rk3588

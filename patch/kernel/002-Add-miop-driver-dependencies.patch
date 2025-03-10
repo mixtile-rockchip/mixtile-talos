@@ -1,0 +1,212 @@
+diff --git a/arch/arm64/boot/dts/rockchip/rk3588-blade3-v101-linux.dts b/arch/arm64/boot/dts/rockchip/rk3588-blade3-v101-linux.dts
+index c088773b9057..f4bd2149b552 100644
+--- a/arch/arm64/boot/dts/rockchip/rk3588-blade3-v101-linux.dts
++++ b/arch/arm64/boot/dts/rockchip/rk3588-blade3-v101-linux.dts
+@@ -37,6 +37,13 @@ cma {
+ 			reg = <0x0 (256 * 0x100000) 0x0 (256 * 0x100000)>;
+ 			linux,cma-default;
+ 		};
++
++		/* Reserve 32MB memory for MIOP endpoint DMA */
++		miop_dma: miop_dma@0x0e000000 {
++			compatible = "shared-dma-pool";
++			reusable;
++			reg = <0x0 0x0e000000 0x0 0x02000000>;
++		};
+ 	};
+ 
+ 	hdmiin-sound {
+@@ -418,8 +425,8 @@ &sdhci {
+ 	no-sd;
+ 	non-removable;
+ 	max-frequency = <200000000>;
+-	mmc-hs400-1_8v;
+-	mmc-hs400-enhanced-strobe;
++	mmc-hs200-1_8v;
++	/delete-property/ supports-cqe;
+ 	status = "okay";
+ };
+ 
+@@ -966,14 +973,19 @@ &pcie2x1l1 { // combphy2, to miniPCIe socket
+ };
+ 
+ &pcie30phy {
+-rockchip,pcie30-phymode = <PHY_MODE_PCIE_AGGREGATION>; /* P1:PCIe3x2  +  P0:PCIe3x2 */
+-status = "okay";
++	rockchip,pcie30-phymode = <PHY_MODE_PCIE_AGGREGATION>;
++	status = "okay";
+ };
+ 
+ &pcie3x4 {
+-    reset-gpios = <&gpio4 RK_PB6 GPIO_ACTIVE_HIGH>;
++	reset-gpios = <&gpio4 RK_PB6 GPIO_ACTIVE_HIGH>;
+     vpcie3v3-supply = <&vcc3v3_pcie30>;
+-    status = "okay";
++	memory-region = <&miop_dma>;
++};
++
++&pcie3x2 {
++	reset-gpios = <&gpio4 RK_PB6 GPIO_ACTIVE_HIGH>;
++	vpcie3v3-supply = <&vcc3v3_pcie30>;
+ };
+ 
+ &pinctrl {
+diff --git a/drivers/pci/controller/dwc/pcie-dw-rockchip.c b/drivers/pci/controller/dwc/pcie-dw-rockchip.c
+index ba462061f6a0..3221e43867f8 100644
+--- a/drivers/pci/controller/dwc/pcie-dw-rockchip.c
++++ b/drivers/pci/controller/dwc/pcie-dw-rockchip.c
+@@ -1280,6 +1280,9 @@ static int rk_pcie_really_probe(void *p)
+ 	if (device_property_read_bool(dev, "rockchip,skip-scan-in-resume"))
+ 		rk_pcie->skip_scan_in_resume = true;
+ 
++	/* app_sris_mode */
++        rk_pcie_writel_apb(rk_pcie, 0x0, (0x1 << 11) | (0x1 << 27));
++
+ 	rk_pcie->hot_rst_wq = create_singlethread_workqueue("rk_pcie_hot_rst_wq");
+ 	if (!rk_pcie->hot_rst_wq) {
+ 		dev_err(dev, "failed to create hot_rst workqueue\n");
+diff --git a/drivers/phy/rockchip/phy-rockchip-snps-pcie3.c b/drivers/phy/rockchip/phy-rockchip-snps-pcie3.c
+index 7eb8899e9b66..bc301019f29e 100644
+--- a/drivers/phy/rockchip/phy-rockchip-snps-pcie3.c
++++ b/drivers/phy/rockchip/phy-rockchip-snps-pcie3.c
+@@ -140,6 +140,26 @@ static int rockchip_p3phy_rk3588_init(struct rockchip_p3phy_priv *priv)
+ 	u32 reg = 0;
+ 	int ret;
+ 
++	/* Enable SRIS mode */
++	/* phy0 lane0 sris_mode_en*/
++	regmap_write(priv->phy_grf, 0x1004, (0x1 << 6) | (0x1 << 22));
++	/* phy0 lane1 sris_mode_en*/
++	regmap_write(priv->phy_grf, 0x1104, (0x1 << 6) | (0x1 << 22));
++	/* phy1 lane0 sris_mode_en*/
++	regmap_write(priv->phy_grf, 0x2004, (0x1 << 6) | (0x1 << 22));
++	/* phy1 lane1 sris_mode_en*/
++	regmap_write(priv->phy_grf, 0x2104, (0x1 << 6) | (0x1 << 22));
++
++	/* Disable reference clock */
++	/* phy0_rx0_cmn_refclk_mod */
++	regmap_write(priv->phy_grf, 0x1004, (0x0) | (0x1 << 23));
++	/* phy0_rx1_cmn_refclk_mod */
++	regmap_write(priv->phy_grf, 0x1104, (0x0) | (0x1 << 23));
++	/* phy1_rx0_cmn_refclk_mod */
++	regmap_write(priv->phy_grf, 0x2004, (0x0) | (0x1 << 23));
++	/* phy1_rx1_cmn_refclk_mod */
++	regmap_write(priv->phy_grf, 0x2104, (0x0) | (0x1 << 23));
++
+ 	/* Deassert PCIe PMA output clamp mode */
+ 	regmap_write(priv->phy_grf, RK3588_PCIE3PHY_GRF_CMN_CON0, BIT(8) | BIT(24));
+ 
+diff --git a/include/linux/skbuff.h b/include/linux/skbuff.h
+index c30d419ebf54..5120491712e8 100644
+--- a/include/linux/skbuff.h
++++ b/include/linux/skbuff.h
+@@ -1058,6 +1058,11 @@ struct sk_buff {
+ 	/* only useable after checking ->active_extensions != 0 */
+ 	struct skb_ext		*extensions;
+ #endif
++
++#ifdef CONFIG_SKB_DMA_FRAG
++	void (*dma_free)(struct sk_buff *skb);
++	void *			dma_context;
++#endif
+ };
+ 
+ /* if you move pkt_type around you also must adapt those constants */
+@@ -1255,6 +1260,11 @@ bool skb_try_coalesce(struct sk_buff *to, struct sk_buff *from,
+ 
+ struct sk_buff *__alloc_skb(unsigned int size, gfp_t priority, int flags,
+ 			    int node);
++#ifdef CONFIG_SKB_DMA_FRAG
++struct sk_buff *build_skb_for_dma(void *data, unsigned int size,
++                             void (*dma_free)(struct sk_buff *skb),
++                             void *dma_context);
++#endif
+ struct sk_buff *__build_skb(void *data, unsigned int frag_size);
+ struct sk_buff *build_skb(void *data, unsigned int frag_size);
+ struct sk_buff *build_skb_around(struct sk_buff *skb,
+diff --git a/net/Kconfig b/net/Kconfig
+index 48c33c222199..7acd9dca4acb 100644
+--- a/net/Kconfig
++++ b/net/Kconfig
+@@ -58,6 +58,12 @@ config NET_REDIRECT
+ config SKB_EXTENSIONS
+ 	bool
+ 
++config SKB_DMA_FRAG
++       bool "SKB data DMA support"
++       help
++         This option enables build_skb_dma() function, makes it possible to
++         handle skb->data alloced by dma_alloc_attrs().
++
+ menu "Networking options"
+ 
+ source "net/packet/Kconfig"
+diff --git a/net/core/skbuff.c b/net/core/skbuff.c
+index 8a819d0a7bfb..584f2946f7fc 100644
+--- a/net/core/skbuff.c
++++ b/net/core/skbuff.c
+@@ -287,6 +287,9 @@ static void __build_skb_around(struct sk_buff *skb, void *data,
+ 	skb_set_end_offset(skb, size);
+ 	skb->mac_header = (typeof(skb->mac_header))~0U;
+ 	skb->transport_header = (typeof(skb->transport_header))~0U;
++#ifdef CONFIG_SKB_DMA_FRAG
++	skb->dma_free = NULL;
++#endif
+ 	skb->alloc_cpu = raw_smp_processor_id();
+ 	/* make sure we initialize shinfo sequentially */
+ 	shinfo = skb_shinfo(skb);
+@@ -347,6 +350,29 @@ struct sk_buff *build_skb(void *data, unsigned int frag_size)
+ }
+ EXPORT_SYMBOL(build_skb);
+ 
++#ifdef CONFIG_SKB_DMA_FRAG
++/**
++ * build_skb_for_dma - build a network buffer in device DMA memory space
++ * @data: data buffer provided by caller
++ * @size: size of data
++ * @dma_free: callback function for free data
++ * @dma_context: context for dma_free() callback
++ */
++struct sk_buff *build_skb_for_dma(void *data, unsigned int size,
++			      void (*dma_free)(struct sk_buff *skb),
++			      void *dma_context)
++{
++	struct sk_buff *skb = __build_skb(data, size);
++
++	if (skb) {
++		skb->dma_free = dma_free;
++		skb->dma_context = dma_context;
++	}
++	return skb;
++}
++EXPORT_SYMBOL(build_skb_for_dma);
++#endif
++
+ /**
+  * build_skb_around - build a network buffer around provided skb
+  * @skb: sk_buff provide by caller, must be memset cleared
+@@ -758,7 +784,12 @@ static void skb_free_head(struct sk_buff *skb)
+ 		if (skb_pp_recycle(skb, head))
+ 			return;
+ 		skb_free_frag(head);
+-	} else {
++	}
++#ifdef CONFIG_SKB_DMA_FRAG
++	else if (skb->dma_free)
++		skb->dma_free(skb);
++#endif
++	else {
+ 		kfree(head);
+ 	}
+ }
+@@ -1195,6 +1226,10 @@ static struct sk_buff *__skb_clone(struct sk_buff *n, struct sk_buff *skb)
+ 	C(head_frag);
+ 	C(data);
+ 	C(truesize);
++#ifdef CONFIG_SKB_DMA_FRAG
++	C(dma_free);
++	C(dma_context);
++#endif
+ 	refcount_set(&n->users, 1);
+ 
+ 	atomic_inc(&(skb_shinfo(skb)->dataref));

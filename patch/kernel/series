@@ -1,0 +1,3 @@
+# Note that newline characters should be in LF format
+001-Fix-version-name-issues.patch
+002-Add-miop-driver-dependencies.patch

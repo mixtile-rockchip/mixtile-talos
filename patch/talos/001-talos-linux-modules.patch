@@ -1,0 +1,260 @@
+diff --git a/Dockerfile b/Dockerfile
+index 4ea3c16..22d3f24 100644
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -34,6 +34,7 @@ ARG PKG_UTIL_LINUX
+ ARG PKG_KMOD
+ ARG PKG_KERNEL
+ ARG PKG_TALOSCTL_CNI_BUNDLE_INSTALL
++ARG PKG_MIOP
+ 
+ # Resolve package images using ${PKGS} to be used later in COPY --from=.
+ 
+@@ -112,6 +113,7 @@ FROM ${PKG_KERNEL} AS pkg-kernel
+ FROM --platform=amd64 ${PKG_KERNEL} AS pkg-kernel-amd64
+ FROM --platform=arm64 ${PKG_KERNEL} AS pkg-kernel-arm64
+ 
++FROM ${PKG_MIOP} AS pkg-miop
+ # Resolve package images using ${EXTRAS} to be used later in COPY --from=.
+ 
+ FROM ${PKG_TALOSCTL_CNI_BUNDLE_INSTALL} AS extras-talosctl-cni-bundle-install
+@@ -541,6 +543,7 @@ FROM tools AS depmod-arm64
+ WORKDIR /staging
+ COPY hack/modules-arm64.txt .
+ COPY --from=pkg-kernel-arm64 /lib/modules lib/modules
++COPY --from=pkg-miop /miop miop
+ RUN <<EOF
+ set -euo pipefail
+ 
+@@ -548,6 +551,7 @@ KERNEL_VERSION=$(ls lib/modules)
+ 
+ xargs -a modules-arm64.txt -I {} install -D lib/modules/${KERNEL_VERSION}/{} /build/lib/modules/${KERNEL_VERSION}/{}
+ 
++cp miop /build/lib/modules/${KERNEL_VERSION}/ -a
+ depmod -b /build ${KERNEL_VERSION}
+ EOF
+ 
+diff --git a/Makefile b/Makefile
+index 90cc909..91a29de 100644
+--- a/Makefile
++++ b/Makefile
+@@ -200,6 +200,7 @@ COMMON_ARGS += --build-arg=PKG_KMOD=$(PKG_KMOD)
+ COMMON_ARGS += --build-arg=PKG_U_BOOT=$(PKG_U_BOOT)
+ COMMON_ARGS += --build-arg=PKG_RASPBERYPI_FIRMWARE=$(PKG_RASPBERYPI_FIRMWARE)
+ COMMON_ARGS += --build-arg=PKG_KERNEL=$(PKG_KERNEL)
++COMMON_ARGS += --build-arg=PKG_MIOP=$(PKG_MIOP)
+ COMMON_ARGS += --build-arg=PKG_TALOSCTL_CNI_BUNDLE_INSTALL=$(PKG_TALOSCTL_CNI_BUNDLE_INSTALL)
+ COMMON_ARGS += --build-arg=ABBREV_TAG=$(ABBREV_TAG)
+ 
+diff --git a/hack/modules-arm64.txt b/hack/modules-arm64.txt
+index 3b07203..59c24ba 100644
+--- a/hack/modules-arm64.txt
++++ b/hack/modules-arm64.txt
+@@ -1,47 +1,163 @@
+-kernel/crypto/async_tx/async_memcpy.ko
+-kernel/crypto/async_tx/async_pq.ko
+-kernel/crypto/async_tx/async_raid6_recov.ko
+-kernel/crypto/async_tx/async_tx.ko
+-kernel/crypto/async_tx/async_xor.ko
+-kernel/crypto/xor.ko
+-kernel/drivers/block/nbd.ko
+-kernel/drivers/hwmon/i5k_amb.ko
+-kernel/drivers/infiniband/hw/mlx4/mlx4_ib.ko
+-kernel/drivers/infiniband/hw/mlx5/mlx5_ib.ko
+-kernel/drivers/infiniband/sw/rxe/rdma_rxe.ko
+-kernel/drivers/irqchip/irq-imx-mu-msi.ko
+-kernel/drivers/mailbox/bcm-flexrm-mailbox.ko
+-kernel/drivers/md/dm-bio-prison.ko
+-kernel/drivers/md/dm-multipath.ko
+-kernel/drivers/md/dm-raid.ko
+-kernel/drivers/md/dm-round-robin.ko
+-kernel/drivers/md/dm-thin-pool.ko
+-kernel/drivers/md/persistent-data/dm-persistent-data.ko
+-kernel/drivers/md/raid456.ko
+-kernel/drivers/net/ethernet/atheros/alx/alx.ko
+-kernel/drivers/net/ethernet/google/gve/gve.ko
+-kernel/drivers/net/ethernet/mellanox/mlx4/mlx4_core.ko
+-kernel/drivers/net/ethernet/mellanox/mlx4/mlx4_en.ko
+-kernel/drivers/net/ethernet/mellanox/mlx5/core/mlx5_core.ko
+-kernel/drivers/net/ethernet/mellanox/mlxfw/mlxfw.ko
+-kernel/drivers/net/ethernet/mellanox/mlxsw/mlxsw_core.ko
+-kernel/drivers/net/ethernet/mellanox/mlxsw/mlxsw_i2c.ko
+-kernel/drivers/net/ethernet/mellanox/mlxsw/mlxsw_minimal.ko
+-kernel/drivers/net/ethernet/mellanox/mlxsw/mlxsw_pci.ko
+-kernel/drivers/net/ethernet/mellanox/mlxsw/mlxsw_spectrum.ko
+-kernel/drivers/net/ethernet/sfc/sfc.ko
+-kernel/drivers/net/ethernet/sfc/siena/sfc-siena.ko
+-kernel/drivers/net/vrf.ko
+-kernel/drivers/vfio/pci/vfio-pci-core.ko
+-kernel/drivers/vfio/pci/vfio-pci.ko
+-kernel/drivers/vfio/vfio_iommu_type1.ko
+-kernel/drivers/vfio/vfio.ko
+-kernel/lib/objagg.ko
+-kernel/lib/parman.ko
+-kernel/lib/raid6/raid6_pq.ko
+-kernel/net/ipv4/ip_gre.ko
+-kernel/net/openvswitch/vport-gre.ko
+-kernel/net/tls/tls.ko
++kernel/drivers/media/spi/cxd2880-spi.ko
++kernel/drivers/media/dvb-frontends/a8293.ko
++kernel/drivers/media/dvb-frontends/ts2020.ko
++kernel/drivers/media/dvb-frontends/cx24117.ko
++kernel/drivers/media/dvb-frontends/tda10048.ko
++kernel/drivers/media/dvb-frontends/lgs8gl5.ko
++kernel/drivers/media/dvb-frontends/au8522_decoder.ko
++kernel/drivers/media/dvb-frontends/m88ds3103.ko
++kernel/drivers/media/dvb-frontends/stb6100.ko
++kernel/drivers/media/dvb-frontends/tda8083.ko
++kernel/drivers/media/dvb-frontends/stv0299.ko
++kernel/drivers/media/dvb-frontends/helene.ko
++kernel/drivers/media/dvb-frontends/nxt6000.ko
++kernel/drivers/media/dvb-frontends/si21xx.ko
++kernel/drivers/media/dvb-frontends/tda18271c2dd.ko
++kernel/drivers/media/dvb-frontends/si2165.ko
++kernel/drivers/media/dvb-frontends/stb0899.ko
++kernel/drivers/media/dvb-frontends/lgdt3306a.ko
++kernel/drivers/media/dvb-frontends/cxd2880/cxd2880.ko
++kernel/drivers/media/dvb-frontends/l64781.ko
++kernel/drivers/media/dvb-frontends/tda10086.ko
++kernel/drivers/media/dvb-frontends/drxk.ko
++kernel/drivers/media/dvb-frontends/tda10021.ko
++kernel/drivers/media/dvb-frontends/lnbh25.ko
++kernel/drivers/media/dvb-frontends/lnbh29.ko
++kernel/drivers/media/dvb-frontends/cx22702.ko
++kernel/drivers/media/dvb-frontends/dib3000mc.ko
++kernel/drivers/media/dvb-frontends/lgdt330x.ko
++kernel/drivers/media/dvb-frontends/stb6000.ko
++kernel/drivers/media/dvb-frontends/lnbp21.ko
++kernel/drivers/media/dvb-frontends/dib8000.ko
++kernel/drivers/media/dvb-frontends/dib7000m.ko
++kernel/drivers/media/dvb-frontends/tda10071.ko
++kernel/drivers/media/dvb-frontends/dib9000.ko
++kernel/drivers/media/dvb-frontends/drx39xyj/drx39xyj.ko
++kernel/drivers/media/dvb-frontends/zl10039.ko
++kernel/drivers/media/dvb-frontends/lgs8gxx.ko
++kernel/drivers/media/dvb-frontends/dib7000p.ko
++kernel/drivers/media/dvb-frontends/tda826x.ko
++kernel/drivers/media/dvb-frontends/s5h1420.ko
++kernel/drivers/media/dvb-frontends/isl6423.ko
++kernel/drivers/media/dvb-frontends/cxd2841er.ko
++kernel/drivers/media/dvb-frontends/bcm3510.ko
++kernel/drivers/media/dvb-frontends/or51211.ko
++kernel/drivers/media/dvb-frontends/s5h1409.ko
++kernel/drivers/media/dvb-frontends/mt312.ko
++kernel/drivers/media/dvb-frontends/ves1820.ko
++kernel/drivers/media/dvb-frontends/or51132.ko
++kernel/drivers/media/dvb-frontends/rtl2832.ko
++kernel/drivers/media/dvb-frontends/mxl5xx.ko
++kernel/drivers/media/dvb-frontends/mn88472.ko
++kernel/drivers/media/dvb-frontends/mt352.ko
++kernel/drivers/media/dvb-frontends/stv6111.ko
++kernel/drivers/media/dvb-frontends/dvb-pll.ko
++kernel/drivers/media/dvb-frontends/sp2.ko
++kernel/drivers/media/dvb-frontends/si2168.ko
++kernel/drivers/media/dvb-frontends/af9033.ko
++kernel/drivers/media/dvb-frontends/af9013.ko
++kernel/drivers/media/dvb-frontends/cx22700.ko
++kernel/drivers/media/dvb-frontends/atbm8830.ko
++kernel/drivers/media/dvb-frontends/mn88443x.ko
++kernel/drivers/media/dvb-frontends/tda10023.ko
++kernel/drivers/media/dvb-frontends/au8522_common.ko
++kernel/drivers/media/dvb-frontends/s5h1411.ko
++kernel/drivers/media/dvb-frontends/rtl2832_sdr.ko
++kernel/drivers/media/dvb-frontends/drxd.ko
++kernel/drivers/media/dvb-frontends/stv0367.ko
++kernel/drivers/media/dvb-frontends/stv0297.ko
++kernel/drivers/media/dvb-frontends/ec100.ko
++kernel/drivers/media/dvb-frontends/lgdt3305.ko
++kernel/drivers/media/dvb-frontends/tua6100.ko
++kernel/drivers/media/dvb-frontends/stv6110.ko
++kernel/drivers/media/dvb-frontends/stv0900.ko
++kernel/drivers/media/dvb-frontends/cx24116.ko
++kernel/drivers/media/dvb-frontends/stv0288.ko
++kernel/drivers/media/dvb-frontends/cxd2099.ko
++kernel/drivers/media/dvb-frontends/tda8261.ko
++kernel/drivers/media/dvb-frontends/ds3000.ko
++kernel/drivers/media/dvb-frontends/s921.ko
++kernel/drivers/media/dvb-frontends/lnbp22.ko
++kernel/drivers/media/dvb-frontends/stv6110x.ko
++kernel/drivers/media/dvb-frontends/cx24113.ko
++kernel/drivers/media/dvb-frontends/cxd2820r.ko
++kernel/drivers/media/dvb-frontends/dib0070.ko
++kernel/drivers/media/dvb-frontends/m88rs2000.ko
++kernel/drivers/media/dvb-frontends/s5h1432.ko
++kernel/drivers/media/dvb-frontends/stv090x.ko
++kernel/drivers/media/dvb-frontends/lg2160.ko
++kernel/drivers/media/dvb-frontends/zl10036.ko
++kernel/drivers/media/dvb-frontends/mb86a16.ko
++kernel/drivers/media/dvb-frontends/mb86a20s.ko
++kernel/drivers/media/dvb-frontends/dib3000mb.ko
++kernel/drivers/media/dvb-frontends/tda1004x.ko
++kernel/drivers/media/dvb-frontends/sp887x.ko
++kernel/drivers/media/dvb-frontends/tda665x.ko
++kernel/drivers/media/dvb-frontends/itd1000.ko
++kernel/drivers/media/dvb-frontends/cx24123.ko
++kernel/drivers/media/dvb-frontends/mn88473.ko
++kernel/drivers/media/dvb-frontends/ves1x93.ko
++kernel/drivers/media/dvb-frontends/rtl2830.ko
++kernel/drivers/media/dvb-frontends/isl6421.ko
++kernel/drivers/media/dvb-frontends/ascot2e.ko
++kernel/drivers/media/dvb-frontends/isl6405.ko
++kernel/drivers/media/dvb-frontends/cx24120.ko
++kernel/drivers/media/dvb-frontends/nxt200x.ko
++kernel/drivers/media/dvb-frontends/horus3a.ko
++kernel/drivers/media/dvb-frontends/dib0090.ko
++kernel/drivers/media/dvb-frontends/tc90522.ko
++kernel/drivers/media/dvb-frontends/zd1301_demod.ko
++kernel/drivers/media/dvb-frontends/ix2505v.ko
++kernel/drivers/media/dvb-frontends/zl10353.ko
++kernel/drivers/media/dvb-frontends/stv0910.ko
++kernel/drivers/media/dvb-frontends/cx24110.ko
++kernel/drivers/media/dvb-frontends/au8522_dig.ko
++kernel/drivers/media/dvb-frontends/dibx000_common.ko
++kernel/drivers/media/dvb-frontends/mxl692.ko
++kernel/drivers/media/tuners/mt20xx.ko
++kernel/drivers/media/tuners/msi001.ko
++kernel/drivers/media/tuners/e4000.ko
++kernel/drivers/media/tuners/qm1d1b0004.ko
++kernel/drivers/media/tuners/tuner-types.ko
++kernel/drivers/media/tuners/qt1010.ko
++kernel/drivers/media/tuners/mt2063.ko
++kernel/drivers/media/tuners/fc0011.ko
++kernel/drivers/media/tuners/mt2060.ko
++kernel/drivers/media/tuners/max2165.ko
++kernel/drivers/media/tuners/qm1d1c0042.ko
++kernel/drivers/media/tuners/tua9001.ko
++kernel/drivers/media/tuners/fc2580.ko
++kernel/drivers/media/tuners/fc0012.ko
++kernel/drivers/media/tuners/fc0013.ko
++kernel/drivers/media/tuners/tea5767.ko
++kernel/drivers/media/tuners/tda9887.ko
++kernel/drivers/media/tuners/xc4000.ko
++kernel/drivers/media/tuners/it913x.ko
++kernel/drivers/media/tuners/tda827x.ko
++kernel/drivers/media/tuners/tda18271.ko
++kernel/drivers/media/tuners/tuner-simple.ko
++kernel/drivers/media/tuners/mt2131.ko
++kernel/drivers/media/tuners/xc2028.ko
++kernel/drivers/media/tuners/mc44s803.ko
++kernel/drivers/media/tuners/xc5000.ko
++kernel/drivers/media/tuners/tda18218.ko
++kernel/drivers/media/tuners/tda18250.ko
++kernel/drivers/media/tuners/mxl5005s.ko
++kernel/drivers/media/tuners/mxl5007t.ko
++kernel/drivers/media/tuners/tda8290.ko
++kernel/drivers/media/tuners/mxl301rf.ko
++kernel/drivers/media/tuners/si2157.ko
++kernel/drivers/media/tuners/r820t.ko
++kernel/drivers/media/tuners/mt2266.ko
++kernel/drivers/media/tuners/m88rs6000t.ko
++kernel/drivers/media/tuners/tea5761.ko
++kernel/drivers/media/tuners/tda18212.ko
++kernel/drivers/net/ethernet/motorcomm/yt6801.ko
++kernel/drivers/net/wireless/rockchip_wlan/rkwifi/bcmdhd/bcmdhd.ko
++kernel/net/ipv4/tcp_htcp.ko
++kernel/net/ipv4/tcp_bic.ko
++kernel/net/ipv4/tcp_westwood.ko
++kernel/net/bpfilter/bpfilter.ko
+ modules.builtin
+ modules.builtin.modinfo
+ modules.order

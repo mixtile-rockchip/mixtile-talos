@@ -1,0 +1,29 @@
+diff --git a/boot/bootmeth-uclass.c b/boot/bootmeth-uclass.c
+index 3b3e0614daf..362fcd4f4d4 100644
+--- a/boot/bootmeth-uclass.c
++++ b/boot/bootmeth-uclass.c
+@@ -399,15 +399,15 @@ int bootmeth_common_read_file(struct udevice *dev, struct bootflow *bflow,
+ 	if (ret)
+ 		return log_msg_ret("fs", ret);
+ 
+-	ret = fs_size(file_path, &size);
+-	if (ret)
+-		return log_msg_ret("size", ret);
+-	if (size > *sizep)
+-		return log_msg_ret("spc", -ENOSPC);
+-
+-	ret = setup_fs(bflow, desc);
+-	if (ret)
+-		return log_msg_ret("fs", ret);
++	// ret = fs_size(file_path, &size);
++	// if (ret)
++	// 	return log_msg_ret("size", ret);
++	// if (size > *sizep)
++	// 	return log_msg_ret("spc", -ENOSPC);
++
++	// ret = setup_fs(bflow, desc);
++	// if (ret)
++	// 	return log_msg_ret("fs", ret);
+ 
+ 	ret = fs_read(file_path, addr, 0, 0, &len_read);
+ 	if (ret)

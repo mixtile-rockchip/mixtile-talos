@@ -36,11 +36,7 @@ func ChipsetName(o rk3588ExtraOpts) string {
 		return o.Chipset
 	}
 	switch o.Board {
-	case "rock-5a":
-		return "rk3588s"
-	case "rock-5b":
-		return "rk3588"
-	case "blade3-v101-linux":
+	case "blade3":
 		return "rk3588"
 	}
 	return ""
@@ -52,19 +48,8 @@ func (i *RK3588Installer) GetOptions(extra rk3588ExtraOpts) (overlay.Options, er
 	}
 
 	kernelArgs := []string{
-		"sysctl.kernel.kexec_load_disabled=1",
-		"talos.dashboard.disabled=1",
-		"slab_nomerge",
-		"earlycon=uart8250,mmio32,0xfeb50000",
 		"console=ttyFIQ0,1500000n8",
-		"consoleblank=0",
 		"console=ttyS2,1500000n8",
-		"console=tty1",
-		"loglevel=7",
-		"cgroup_enable=cpuset",
-		"swapaccount=1",
-		"irqchip.gicv3_pseudo_nmi=0",
-		"coherent_pool=2M",
 	}
 
 	return overlay.Options{
@@ -108,7 +93,7 @@ func (i *RK3588Installer) Install(options overlay.InstallOptions[rk3588ExtraOpts
 		return err
 	}
 
-	dtb := filepath.Join("rockchip", fmt.Sprintf("rk3588-blade3-v101-linux.dtb"))
+	dtb := filepath.Join("rockchip", fmt.Sprintf("rk3588-mixtile-blade3.dtb"))
 	src := filepath.Join(options.ArtifactsPath, "arm64/dtb", dtb)
 	dst := filepath.Join(options.MountPrefix, "/boot/EFI/dtb", dtb)
 

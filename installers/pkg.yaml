@@ -3,8 +3,6 @@ variant: scratch
 shell: /toolchain/bin/bash
 dependencies:
   - stage: base
-  - stage: u-boot-mixtile-blade3
-    platform: linux/arm64
   - stage: kernel-mixtile-blade3
     platform: linux/arm64
   - stage: overlay-blade3

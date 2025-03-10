@@ -1,47 +1,22 @@
 name: kernel-mixtile-blade3
 variant: scratch
-shell: /bin/bash
+shell: /toolchain/bin/bash
 dependencies:
-  - stage: kernel-build
+  - stage: base
 steps:
   - env:
       ARCH: {{ if eq .ARCH "aarch64"}}arm64{{ else }}unsupported{{ end }}
-    build:
-    - |
-      cd /src/kernel
-      export ARCH=arm64
-      export CROSS_COMPILE=aarch64-linux-gnu-
-      make -j $(nproc) rockchip/rk3588-blade3-v101-linux.dtb
+    prepare:
+      - |
+        mkdir -p /rootfs/boot
+        mkdir -p /rootfs/dtb/rockchip
+        mkdir -p /rootfs/certs
     install:
       - |
-        cd /src/kernel
-        export ARCH=arm64
-        export CROSS_COMPILE=aarch64-linux-gnu-
-        mkdir -p /rootfs/boot
-        mkdir -p /rootfs/dtb
-        mkdir -p /rootfs/certs
-        cp /src/kernel/certs/signing_key.x509 /rootfs/certs/signing_key.x509
-        case $ARCH in
-            arm64)
-                mv arch/arm64/boot/Image /rootfs/boot/vmlinuz
-                cd ./arch/arm64/boot/dts
-                for vendor in $(find . -not -path . -type d); do
-                  dest="/rootfs/dtb/$vendor"
-                  mkdir -v $dest
-                  find ./$vendor/* -type f -name "*.dtb" -exec cp {} $dest \;
-                done
-                cd -
-            ;;
-            *)
-                echo "unsupported arch ${ARCH}"
-                exit 1
-            ;;
-        esac
-
-        export KERNELRELEASE=$(cat include/config/kernel.release)
-        make -j $(nproc) modules_install DEPMOD=/toolchain/bin/depmod INSTALL_MOD_PATH=/rootfs INSTALL_MOD_STRIP=1
-        depmod -b /rootfs $KERNELRELEASE
-        unlink /rootfs/lib/modules/$KERNELRELEASE/build
+        cp -v /pkg/output/signing_key.x509 /rootfs/certs/signing_key.x509
+        cp -v /pkg/output/Image /rootfs/boot/vmlinuz
+        cp -v /pkg/output/rk3588*.dtb /rootfs/dtb/rockchip
+        cp -rf /pkg/output/lib /rootfs -a
 finalize:
   - from: /rootfs
     to: /
