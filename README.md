@@ -77,10 +77,9 @@ _out/
 Download and install `rkdeveloptool` for flashing firmware:
 
 ```bash
-git clone https://github.com/rockchip-linux/rkdeveloptool.git
-cd rkdeveloptool
-make
-sudo make install
+git clone https://github.com/mixtile-rockchip/rkdeveloptool.git
+
+Follow the README instructions to install
 ```
 
 ### 3.2 Entering Flash Mode

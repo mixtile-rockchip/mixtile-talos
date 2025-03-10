@@ -70,10 +70,9 @@ _out/
 下载并安装 `rkdeveloptool`，用于烧录固件：
 
 ```bash
-git clone https://github.com/rockchip-linux/rkdeveloptool.git
-cd rkdeveloptool
-make
-sudo make install
+git clone https://github.com/mixtile-rockchip/rkdeveloptool.git
+
+按照 README 指导安装
 ```
 
 ### 3.2 进入烧录模式
