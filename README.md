@@ -107,3 +107,5 @@ rkdeveloptool rd
 ```
 
 At this point, the entire compilation and flashing process is complete. The device should boot and run the newly flashed firmware successfully.
+
+**Note: Some PD adapters may be restarted. Adapters with non-PD protocol and 5V/3A support are recommended**
