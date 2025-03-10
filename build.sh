@@ -154,18 +154,18 @@ docker run -it --rm \
     export ROCKCHIP_TPL="/src/rkbin/bin/rk35/rk3588_ddr_lp4_2112MHz_lp5_2400MHz_v1.16.bin"
     export BL31="/src/rkbin/bin/rk35/rk3588_bl31_v1.45.elf"
 
-    # echo 'Building Uboot...'
-    # cd /src/uboot
-    # make blade3-rk3588_defconfig && make -j $(nproc)
+    echo 'Building Uboot...'
+    cd /src/uboot
+    make blade3-rk3588_defconfig && make -j $(nproc)
 
-    # echo 'Building Kernel...'
-    # export ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-
-    # cd /src/kernel
-    # make mixtile-blade3_defconfig 
-    # make -j$(nproc) Image 
-    # make -j$(nproc) modules
-    # make rockchip/rk3588-mixtile-blade3.dtb
-    # make modules_install INSTALL_MOD_PATH=/src
+    echo 'Building Kernel...'
+    export ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-
+    cd /src/kernel
+    make mixtile-blade3_defconfig
+    make -j$(nproc) Image
+    make -j$(nproc) modules
+    make rockchip/rk3588-mixtile-blade3.dtb
+    make modules_install INSTALL_MOD_PATH=/src
 "
 
 if [ $UBOOT_SERIES_FLAG ]; then
