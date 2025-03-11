@@ -94,11 +94,11 @@ popd
 cp -v $KERNEL_CONFIG $KERNEL_SRC_DIR/arch/arm64/configs
 cp -r $X509_CERTS_DIR/* $KERNEL_SRC_DIR/certs -v
 
-if [ $UBOOT_SERIES_FLAG ]; then
+if [ "$UBOOT_SERIES_FLAG" -eq 1 ]; then
     pushd $UBOOT_SRC_DIR && apply_patches "$UBOOT_SERIES_FILE" "$UBOOT_PATCH_DIR" && popd
 fi
 
-if [ $KERNEL_SERIES_FLAG ]; then
+if [ "$KERNEL_SERIES_FLAG" -eq 1 ]; then
     pushd $KERNEL_SRC_DIR && apply_patches "$KERNEL_SERIES_FILE" "$KERNEL_PATCH_DIR" && popd
 fi
 
@@ -168,11 +168,11 @@ docker run -it --rm \
     make modules_install INSTALL_MOD_PATH=/src
 "
 
-if [ $UBOOT_SERIES_FLAG ]; then
+if [ "$UBOOT_SERIES_FLAG" -eq 1 ]; then
     pushd $UBOOT_SRC_DIR && reverse_patches "$UBOOT_SERIES_FILE" "$UBOOT_PATCH_DIR" && popd
 fi
 
-if [ $KERNEL_SERIES_FLAG ]; then
+if [ "$KERNEL_SERIES_FLAG" -eq 1 ]; then
     pushd $KERNEL_SRC_DIR && reverse_patches "$KERNEL_SERIES_FILE" "$KERNEL_PATCH_DIR" && popd
 fi
 
@@ -202,7 +202,7 @@ make talos-sbc-mixtile-blade3 kernel-mixtile-blade3 PUSH=true
 
 popd
 
-if [ $TALOS_SERIES_FLAG ]; then
+if [ "$TALOS_SERIES_FLAG" -eq 1 ]; then
     pushd $TALOS_SRC_DIR && apply_patches "$TALOS_SERIES_FILE" "$TALOS_PATCH_DIR" && popd
 fi
 
@@ -215,7 +215,7 @@ make  imager PKG_KERNEL="ghcr.io/$USERNAME/kernel-mixtile-blade3:v0.1" PKG_MIOP=
 
 popd
 
-if [ $TALOS_SERIES_FLAG ]; then
+if [ "$TALOS_SERIES_FLAG" -eq 1 ]; then
     pushd $TALOS_SRC_DIR && reverse_patches "$TALOS_SERIES_FILE" "$TALOS_PATCH_DIR" && popd
 fi
 
