@@ -12,7 +12,9 @@ steps:
   - prepare:
       - |
         mkdir -p /rootfs/artifacts/arm64/dtb/rockchip
+        mkdir -p /rootfs/artifacts/arm64/u-boot/mixtile-blade3
         cp /dtb/rockchip/rk3588*.dtb /rootfs/artifacts/arm64/dtb/rockchip/
+        cp /pkg/output/u-boot-rockchip.bin /rootfs/artifacts/arm64/u-boot/mixtile-blade3/
 finalize:
   - from: /rootfs
     to: /
