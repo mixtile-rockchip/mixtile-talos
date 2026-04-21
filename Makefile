@@ -133,7 +133,7 @@ reproducibility-test-local-%:  ## Builds the specified target defined in the Pkg
 
 .PHONY: $(TARGETS)
 $(TARGETS):
-	@$(MAKE) docker-$@ TARGET_ARGS="--tag=$(REGISTRY_AND_USERNAME)/$@:$(TAG) --push=$(PUSH)"
+	@$(MAKE) docker-$@ TARGET_ARGS="--tag=$(REGISTRY_AND_USERNAME)/$@:$(IMAGE_TAG) --push=$(PUSH)"
 
 .PHONY: deps.png
 deps.png:  ## Generates a dependency graph of the Pkgfile.

@@ -6,6 +6,8 @@ dependencies:
 steps:
   - env:
       GOPATH: /go
+      GOPROXY: https://goproxy.cn,direct
+      GOSUMDB: sum.golang.google.cn
     cachePaths:
       - /.cache/go-build
       - /go/pkg
