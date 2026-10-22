@@ -1,0 +1,54 @@
+# The kernel tree of Talos v1.14.4 (6.18.57-talos), prepared for building
+# out-of-tree modules. Mirrors siderolabs/pkgs kernel/prepare + kernel/build
+# at commit 2ec10eb (PKGS v1.14.0-44-g2ec10eb): same sources, patches,
+# config and LLVM toolchain image. Only vmlinux and modules_prepare are
+# built; that is enough for Module.symvers (symbol CRCs) and module BTF.
+#
+# The resulting modules are not signed with the Talos key, which is a
+# throw-away key generated during the official build. Images that use
+# them must drop module.sig_enforce (see build.sh).
+name: talos-kernel-build
+variant: scratch
+shell: /bin/bash
+dependencies:
+  - stage: base
+  - image: "{{ .BUILD_ARG_TOOLS_PREFIX }}/llvm:{{ .BUILD_ARG_TOOLS }}"
+steps:
+  - sources:
+      - url: https://cdn.kernel.org/pub/linux/kernel/v{{ regexReplaceAll "(\\d+)(.\\d+)(\\.\\d+)?$" .linux_version "${1}" }}.x/linux-{{ .linux_version }}.tar.xz
+        destination: linux.tar.xz
+        sha256: "{{ .linux_sha256 }}"
+        sha512: "{{ .linux_sha512 }}"
+    env:
+      ARCH: arm64
+      LLVM: 1
+    prepare:
+      - |
+        mkdir -p /src
+        tar -xJf linux.tar.xz --strip-components=1 -C /src
+        rm linux.tar.xz
+        cd /src
+        make mrproper
+        cp -v /pkg/config-arm64 .config
+        cp -v /pkg/certs/* certs/
+        for patch in $(find /pkg/patches -type f -name "*.patch" | sort); do
+          patch -p1 < "$patch" || { echo "Failed to apply patch $patch"; exit 1; }
+          echo "Applied patch $patch"
+        done
+    build:
+      - |
+        cd /src
+        make -j $(nproc) vmlinux
+        make -j $(nproc) modules_prepare
+        # External modules here only import symbols exported by vmlinux.
+        cp vmlinux.symvers Module.symvers
+    test:
+      - |
+        cd /src
+        test "$(cat include/config/kernel.release)" = "{{ .linux_version }}-talos"
+        # The config must be the one Talos ships, unchanged by olddefconfig
+        # (apart from the compiler version text).
+        diff <(grep -v CONFIG_CC_VERSION_TEXT .config) <(grep -v CONFIG_CC_VERSION_TEXT /pkg/config-arm64)
+finalize:
+  - from: /src
+    to: /src

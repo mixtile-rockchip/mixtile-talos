@@ -1,0 +1,49 @@
+name: u-boot-mixtile-blade3
+variant: scratch
+shell: /bin/bash
+dependencies:
+  - stage: base
+  - stage: arm-trusted-firmware-rk3588
+  - stage: rkbin-rk3588
+steps:
+  - sources:
+      - url: https://ftp.denx.de/pub/u-boot/u-boot-{{ .uboot_version }}.tar.bz2
+        destination: u-boot.tar.bz2
+        sha256: "{{ .uboot_sha256 }}"
+        sha512: "{{ .uboot_sha512 }}"
+    env:
+      SOURCE_DATE_EPOCH: "{{ .BUILD_ARG_SOURCE_DATE_EPOCH }}"
+    prepare:
+      - |
+        tar xf u-boot.tar.bz2 --strip-components=1
+
+        cp /pkg/mixtile-blade3-rk3588_defconfig configs/
+        cp /pkg/rk3588-mixtile-blade3.dts dts/upstream/src/arm64/rockchip/
+        cp /pkg/rk3588-mixtile-blade3-u-boot.dtsi arch/arm/dts/
+
+        # U-Boot 2026.07 still uses two Python 2 C API aliases in pylibfdt.
+        # Python 3.14 removed them, so update the SWIG input before generation.
+        sed -i \
+          -e 's/PyString_FromString/PyUnicode_FromString/g' \
+          -e 's/PyInt_AsLong/PyLong_AsLong/g' \
+          scripts/dtc/pylibfdt/libfdt.i_shipped
+
+        # Blade 3: mmc0=eMMC and mmc1=microSD. Prefer removable media,
+        # then local NVMe, before the installed eMMC.
+        sed -i 's/#define BOOT_TARGETS.*/#define BOOT_TARGETS "mmc1 nvme mmc0 pxe dhcp"/' \
+          include/configs/rockchip-common.h
+
+        make mixtile-blade3-rk3588_defconfig
+    build:
+      - |
+        make -j "$(nproc)" \
+          HOSTLDLIBS_mkimage="-lssl -lcrypto" \
+          BL31=/libs/arm-trusted-firmware/rk3588/bl31.elf \
+          ROCKCHIP_TPL=/libs/rkbin/rk3588_ddr_lp4_2112MHz_lp5_2400MHz_v1.19.bin
+    install:
+      - |
+        mkdir -p /rootfs/artifacts/arm64/u-boot/mixtile-blade3
+        cp u-boot-rockchip.bin /rootfs/artifacts/arm64/u-boot/mixtile-blade3/
+finalize:
+  - from: /rootfs
+    to: /rootfs

@@ -1,0 +1,16 @@
+version: v1alpha1
+metadata:
+  name: openmiop
+  version: "@VERSION@"
+  author: roysbike
+  description: |
+    openmiop-ep: Ethernet (omi0) over the Mixtile Cluster Box PCIe fabric, with the
+    RK3588 PCIe3 controller as endpoint. Built for Talos v1.14.4, Linux 6.18.57-talos.
+    The modules are not signed by the Talos build key; the image must drop
+    module.sig_enforce.
+    blade3-leds: activity LEDs for the Blade 3 RTL8125 ports (loaded with r8169).
+    blade3-nvme-recover: brings the M.2 NVMe back after a Cluster Box PERST#
+    (loaded with nvme).
+  compatibility:
+    talos:
+      version: ">= v1.14.4"

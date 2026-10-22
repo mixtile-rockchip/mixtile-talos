@@ -1,0 +1,30 @@
+name: dtb-mixtile-blade3
+variant: scratch
+shell: /bin/bash
+dependencies:
+  - stage: base
+steps:
+  - sources:
+      - url: https://cdn.kernel.org/pub/linux/kernel/v{{ regexReplaceAll "(\\d+)(.\\d+)(\\.\\d+)?$" .linux_version "${1}" }}.x/linux-{{ .linux_version }}.tar.xz
+        destination: linux.tar.xz
+        sha256: "{{ .linux_sha256 }}"
+        sha512: "{{ .linux_sha512 }}"
+    prepare:
+      - |
+        tar -xJf linux.tar.xz --strip-components=1
+        rm linux.tar.xz
+        cp /pkg/rk3588-mixtile-blade3.dts arch/arm64/boot/dts/rockchip/
+    build:
+      - |
+        cpp -nostdinc -I include -I arch -undef -x assembler-with-cpp \
+          arch/arm64/boot/dts/rockchip/rk3588-mixtile-blade3.dts \
+          rk3588-mixtile-blade3.dts.preprocessed
+        dtc -O dtb -o rk3588-mixtile-blade3.dtb \
+          rk3588-mixtile-blade3.dts.preprocessed
+    install:
+      - |
+        mkdir -p /rootfs/dtb/rockchip
+        cp rk3588-mixtile-blade3.dtb /rootfs/dtb/rockchip/
+finalize:
+  - from: /rootfs
+    to: /

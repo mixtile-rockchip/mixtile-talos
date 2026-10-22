@@ -1,11 +1,11 @@
 module rk3588
 
-go 1.22.3
+go 1.26.5
 
 require (
 	github.com/siderolabs/go-copy v0.1.0
-	github.com/siderolabs/talos/pkg/machinery v1.7.4
-	golang.org/x/sys v0.20.0
+	github.com/siderolabs/talos/pkg/machinery v1.14.4
+	golang.org/x/sys v0.47.0
 )
 
-require gopkg.in/yaml.v3 v3.0.1 // indirect
+require go.yaml.in/yaml/v4 v4.0.0-rc.6 // indirect

@@ -1,0 +1,73 @@
+# openmiop (pcie-ep-net) as a Talos system extension: omi0, Ethernet over
+# the Mixtile Cluster Box PCIe fabric, plus the Blade 3 board modules from
+# the same source release. Built against the exact Talos kernel tree from
+# talos-kernel-build, with the Talos LLVM toolchain, the way
+# siderolabs/pkgs builds out-of-tree modules.
+name: openmiop
+variant: scratch
+shell: /bin/bash
+dependencies:
+  - stage: base
+  # The kernel tree: a prebuilt talos-kernel-build image when build.sh
+  # passes one (KERNEL_BUILD_IMAGE), otherwise the stage itself.
+{{- if .BUILD_ARG_KERNEL_BUILD_IMAGE }}
+  - image: "{{ .BUILD_ARG_KERNEL_BUILD_IMAGE }}"
+    from: /src
+    to: /src
+{{- else }}
+  - stage: talos-kernel-build
+{{- end }}
+  - image: "{{ .BUILD_ARG_TOOLS_PREFIX }}/llvm:{{ .BUILD_ARG_TOOLS }}"
+steps:
+  - sources:
+      - url: https://github.com/roysbike/pcie-ep-net/archive/{{ .openmiop_ref }}.tar.gz
+        destination: openmiop.tar.gz
+        sha256: "{{ .openmiop_sha256 }}"
+        sha512: "{{ .openmiop_sha512 }}"
+    env:
+      ARCH: arm64
+      LLVM: 1
+    prepare:
+      - |
+        tar -xzf openmiop.tar.gz --strip-components=1
+        rm openmiop.tar.gz
+    build:
+      - |
+        # As siderolabs/pkgs builds out-of-tree modules (xdma-driver-pkg):
+        # one source release, every module from it.
+        make -C /src M=$(pwd)/drivers/openmiop modules
+        # Blade 3 board modules: RTL8125 port LEDs, and the NVMe back after
+        # a Cluster Box PERST# (no host link-down handling in the Talos
+        # 6.18 dw-rockchip driver).
+        make -C /src M=$(pwd)/drivers/blade3 modules
+    install:
+      - |
+        krel=$(cat /src/include/config/kernel.release)
+        mkdir -p /rootfs/usr/lib/modules/${krel}
+        for d in drivers/openmiop drivers/blade3; do
+          make -C /src M=$(pwd)/${d} modules_install \
+            INSTALL_MOD_PATH=/rootfs/usr INSTALL_MOD_DIR=extras INSTALL_MOD_STRIP=1 DEPMOD=true
+        done
+        sed -e "s/@VERSION@/{{ .openmiop_version }}/" /pkg/manifest.yaml > /rootfs/manifest.yaml
+    test:
+      - |
+        krel=$(cat /src/include/config/kernel.release)
+        test "${krel}" = "{{ .linux_version }}-talos"
+        for m in openmiop-ep blade3-leds blade3-nvme-recover; do
+          ko=/rootfs/usr/lib/modules/${krel}/extras/${m}.ko
+          test -f "${ko}"
+          grep -aq "vermagic=${krel} SMP mod_unload modversions aarch64" "${ko}"
+          grep -aq "license=GPL" "${ko}"
+          # Signed by modules_install (CONFIG_MODULE_SIG_ALL), as in pkgs;
+          # here with the throw-away key of this kernel tree, not the
+          # Talos key, so the image still drops module.sig_enforce.
+          grep -Fq "~Module signature appended~" "${ko}"
+        done
+        # Only the modules: no modules.* index files of the kernel tree.
+        test "$(find /rootfs/usr/lib/modules -type f | grep -vc '/extras/')" = 0
+        grep -q "@VERSION@" /rootfs/manifest.yaml && exit 1 || true
+finalize:
+  - from: /rootfs/usr
+    to: /rootfs/usr
+  - from: /rootfs/manifest.yaml
+    to: /manifest.yaml

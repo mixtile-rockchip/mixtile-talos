@@ -2,17 +2,22 @@
 kind: pkgfile.Build
 spec:
   targets:
-    - talos-sbc-mixtile-blade3
-    - kernel-mixtile-blade3
+    - sbc-mixtile-blade3
   extraBuildArgs:
     - PKGS_PREFIX
     - PKGS
+    - TOOLS_PREFIX
+    - TOOLS
   makefile:
     extraVariables:
       - name: PKGS_PREFIX
         defaultValue: ghcr.io/siderolabs
       - name: PKGS
-        defaultValue: v1.7.0
+        defaultValue: v1.14.0-44-g2ec10eb
+      - name: TOOLS_PREFIX
+        defaultValue: ghcr.io/siderolabs
+      - name: TOOLS
+        defaultValue: v1.14.0-9-g6b71647
 ---
 kind: common.Build
 spec:

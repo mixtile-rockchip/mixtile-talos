@@ -1,160 +1,48 @@
-# THIS FILE WAS AUTOMATICALLY GENERATED, PLEASE DO NOT EDIT.
-#
-# Generated on 2024-06-02T22:45:44Z by kres f249b6c.
+SHELL := /bin/bash
 
-# common variables
-
-SHA := $(shell git describe --match=none --always --abbrev=8 --dirty)
-# TAG := $(shell git describe --tag --always --dirty --match v[0-9]\*)
-TAG := v0.1
-ABBREV_TAG := $(shell git describe --tags >/dev/null 2>/dev/null && git describe --tag --always --match v[0-9]\* --abbrev=0 || echo 'undefined')
-BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
-ARTIFACTS := _out
-IMAGE_TAG ?= $(TAG)
-OPERATING_SYSTEM := $(shell uname -s | tr '[:upper:]' '[:lower:]')
-GOARCH := $(shell uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/')
-REGISTRY ?= ghcr.io
-USERNAME ?= milas
-REGISTRY_AND_USERNAME ?= $(REGISTRY)/$(USERNAME)
-KRES_IMAGE ?= ghcr.io/siderolabs/kres:latest
-CONFORMANCE_IMAGE ?= ghcr.io/siderolabs/conform:latest
-
-# source date epoch of first commit
-
-INITIAL_COMMIT_SHA := $(shell git rev-list --max-parents=0 HEAD)
-SOURCE_DATE_EPOCH := $(shell git log $(INITIAL_COMMIT_SHA) --pretty=%ct)
-
-# sync bldr image with pkgfile
-
-BLDR_RELEASE := v0.3.1
-BLDR_IMAGE := ghcr.io/siderolabs/bldr:$(BLDR_RELEASE)
-BLDR := docker run --rm --user $(shell id -u):$(shell id -g) --volume $(PWD):/src --entrypoint=/bldr $(BLDR_IMAGE) --root=/src
-
-# docker build settings
-
-BUILD := docker buildx build
+ARTIFACTS ?= _out
 PLATFORM ?= linux/arm64
 PROGRESS ?= auto
-PUSH ?= false
-CI_ARGS ?=
-COMMON_ARGS = --file=Pkgfile
-COMMON_ARGS += --provenance=false
-COMMON_ARGS += --progress=$(PROGRESS)
-COMMON_ARGS += --platform=$(PLATFORM)
-COMMON_ARGS += --build-arg=SOURCE_DATE_EPOCH=$(SOURCE_DATE_EPOCH)
-COMMON_ARGS += --build-arg=PKGS_PREFIX="$(PKGS_PREFIX)"
-COMMON_ARGS += --build-arg=PKGS="$(PKGS)"
-
-# extra variables
-
 PKGS_PREFIX ?= ghcr.io/siderolabs
-PKGS ?= v1.7.0
+PKGS ?= v1.14.0-44-g2ec10eb
+TOOLS_PREFIX ?= ghcr.io/siderolabs
+TOOLS ?= v1.14.0-9-g6b71647
+SOURCE_DATE_EPOCH ?= $(shell git log -1 --pretty=%ct)
 
-# targets defines all the available targets
+BUILD_ARGS = --file=Pkgfile
+BUILD_ARGS += --provenance=false
+BUILD_ARGS += --sbom=false
+BUILD_ARGS += --progress=$(PROGRESS)
+BUILD_ARGS += --platform=$(PLATFORM)
+BUILD_ARGS += --build-arg=SOURCE_DATE_EPOCH=$(SOURCE_DATE_EPOCH)
+BUILD_ARGS += --build-arg=PKGS_PREFIX=$(PKGS_PREFIX)
+BUILD_ARGS += --build-arg=PKGS=$(PKGS)
+BUILD_ARGS += --build-arg=TOOLS_PREFIX=$(TOOLS_PREFIX)
+BUILD_ARGS += --build-arg=TOOLS=$(TOOLS)
+# Optional, e.g. registry cache flags from build.sh (BUILD_CACHE).
+BUILD_ARGS += $(CACHE_ARGS)
+# Prebuilt talos-kernel-build image for the openmiop stage; empty builds
+# the kernel tree as a stage (see build.sh, KERNEL_IMAGE).
+KERNEL_BUILD_IMAGE ?=
+BUILD_ARGS += --build-arg=KERNEL_BUILD_IMAGE=$(KERNEL_BUILD_IMAGE)
 
-TARGETS = talos-sbc-mixtile-blade3
-TARGETS += kernel-mixtile-blade3
+.DEFAULT_GOAL := sbc-mixtile-blade3
 
-# help menu
+.PHONY: sbc-mixtile-blade3
+sbc-mixtile-blade3:
+	$(MAKE) target-sbc-mixtile-blade3 TARGET_ARGS="$(TARGET_ARGS)"
 
-export define HELP_MENU_HEADER
-# Getting Started
-
-To build this project, you must have the following installed:
-
-- git
-- make
-- docker (19.03 or higher)
-
-## Creating a Builder Instance
-
-The build process makes use of experimental Docker features (buildx).
-To enable experimental features, add 'experimental: "true"' to '/etc/docker/daemon.json' on
-Linux or enable experimental features in Docker GUI for Windows or Mac.
-
-To create a builder instance, run:
-
-	docker buildx create --name local --use
-
-If running builds that needs to be cached aggresively create a builder instance with the following:
-
-	docker buildx create --name local --use --config=config.toml
-
-config.toml contents:
-
-[worker.oci]
-  gc = true
-  gckeepstorage = 50000
-
-  [[worker.oci.gcpolicy]]
-    keepBytes = 10737418240
-    keepDuration = 604800
-    filters = [ "type==source.local", "type==exec.cachemount", "type==source.git.checkout"]
-  [[worker.oci.gcpolicy]]
-    all = true
-    keepBytes = 53687091200
-
-If you already have a compatible builder instance, you may use that instead.
-
-## Artifacts
-
-All artifacts will be output to ./$(ARTIFACTS). Images will be tagged with the
-registry "$(REGISTRY)", username "$(USERNAME)", and a dynamic tag (e.g. $(IMAGE):$(IMAGE_TAG)).
-The registry and username can be overridden by exporting REGISTRY, and USERNAME
-respectively.
-
-endef
-
-all: $(TARGETS)  ## Builds all targets defined.
-
-$(ARTIFACTS):  ## Creates artifacts directory.
-	@mkdir -p $(ARTIFACTS)
+.PHONY: target-%
+target-%:
+	docker buildx build --target=$* $(BUILD_ARGS) $(TARGET_ARGS) .
 
 .PHONY: clean
-clean:  ## Cleans up all artifacts.
-	@rm -rf $(ARTIFACTS)
-
-target-%:  ## Builds the specified target defined in the Pkgfile. The build result will only remain in the build cache.
-	@$(BUILD) --target=$* $(COMMON_ARGS) $(TARGET_ARGS) $(CI_ARGS) .
-
-local-%:  ## Builds the specified target defined in the Pkgfile using the local output type. The build result will be output to the specified local destination.
-	@$(MAKE) target-$* TARGET_ARGS="--output=type=local,dest=$(DEST) $(TARGET_ARGS)"
-
-docker-%:  ## Builds the specified target defined in the Pkgfile using the docker output type. The build result will be loaded into Docker.
-	@$(MAKE) target-$* TARGET_ARGS="$(TARGET_ARGS)"
-
-reproducibility-test-local-%:  ## Builds the specified target defined in the Pkgfile using the local output type with and without cahce. The build result will be output to the specified local destination
-	@rm -rf $(ARTIFACTS)/build-a $(ARTIFACTS)/build-b
-	@$(MAKE) local-$* DEST=$(ARTIFACTS)/build-a
-	@$(MAKE) local-$* DEST=$(ARTIFACTS)/build-b TARGET_ARGS="--no-cache"
-	@touch -ch -t $$(date -d @$(SOURCE_DATE_EPOCH) +%Y%m%d0000) $(ARTIFACTS)/build-a $(ARTIFACTS)/build-b
-	@diffoscope $(ARTIFACTS)/build-a $(ARTIFACTS)/build-b
-	@rm -rf $(ARTIFACTS)/build-a $(ARTIFACTS)/build-b
-
-.PHONY: $(TARGETS)
-$(TARGETS):
-	@$(MAKE) docker-$@ TARGET_ARGS="--tag=$(REGISTRY_AND_USERNAME)/$@:$(IMAGE_TAG) --push=$(PUSH)"
-
-.PHONY: deps.png
-deps.png:  ## Generates a dependency graph of the Pkgfile.
-	@$(BLDR) graph | dot -Tpng -o deps.png
-
-.PHONY: rekres
-rekres:
-	@docker pull $(KRES_IMAGE)
-	@docker run --rm --net=host --user $(shell id -u):$(shell id -g) -v $(PWD):/src -w /src -e GITHUB_TOKEN $(KRES_IMAGE)
+clean:
+	rm -rf "$(ARTIFACTS)"
 
 .PHONY: help
-help:  ## This help menu.
-	@echo "$$HELP_MENU_HEADER"
-	@grep -E '^[a-zA-Z%_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
-
-.PHONY: release-notes
-release-notes: $(ARTIFACTS)
-	@ARTIFACTS=$(ARTIFACTS) ./hack/release.sh $@ $(ARTIFACTS)/RELEASE_NOTES.md $(TAG)
-
-.PHONY: conformance
-conformance:
-	@docker pull $(CONFORMANCE_IMAGE)
-	@docker run --rm -it -v $(PWD):/src -w /src $(CONFORMANCE_IMAGE) enforce
-
+help:
+	@echo "Targets:"
+	@echo "  sbc-mixtile-blade3  Build the Blade 3 overlay"
+	@echo "  target-<stage>       Build any bldr stage"
+	@echo "  clean                Remove local output"

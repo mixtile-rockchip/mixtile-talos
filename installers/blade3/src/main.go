@@ -5,55 +5,48 @@
 package main
 
 import (
+	"context"
 	_ "embed"
-	"errors"
 	"fmt"
+	"os"
+	"os/signal"
+	"path/filepath"
+
 	"github.com/siderolabs/go-copy/copy"
 	"github.com/siderolabs/talos/pkg/machinery/overlay"
 	"github.com/siderolabs/talos/pkg/machinery/overlay/adapter"
 	"golang.org/x/sys/unix"
-	"os"
-	"path/filepath"
 )
 
 const (
-	ubootOffset int64 = 512 * 64
+	uBootOffset int64 = 512 * 64
+	dtb               = "rockchip/rk3588-mixtile-blade3.dtb"
 )
 
 func main() {
-	adapter.Execute[rk3588ExtraOpts](&RK3588Installer{})
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
+
+	adapter.Execute(ctx, &blade3Installer{})
 }
 
-type RK3588Installer struct{}
+type blade3Installer struct{}
 
-type rk3588ExtraOpts struct {
-	Board   string `json:"board"`
-	Chipset string `json:"chipset"`
+type blade3ExtraOptions struct {
+	SPIBoot bool `yaml:"spi_boot,omitempty"`
 }
 
-func ChipsetName(o rk3588ExtraOpts) string {
-	if o.Chipset != "" {
-		return o.Chipset
-	}
-	switch o.Board {
-	case "blade3":
-		return "rk3588"
-	}
-	return ""
-}
-
-func (i *RK3588Installer) GetOptions(extra rk3588ExtraOpts) (overlay.Options, error) {
-	if extra.Board == "" {
-		return overlay.Options{}, errors.New("board variant required")
-	}
-
+func (i *blade3Installer) GetOptions(_ context.Context, _ blade3ExtraOptions) (overlay.Options, error) {
 	kernelArgs := []string{
-		"console=ttyFIQ0,1500000n8",
+		"cma=128MB",
+		"console=tty0",
 		"console=ttyS2,1500000n8",
+		"sysctl.kernel.kexec_load_disabled=1",
+		"talos.dashboard.disabled=1",
 	}
 
 	return overlay.Options{
-		Name:       extra.Board,
+		Name:       "mixtile-blade3",
 		KernelArgs: kernelArgs,
 		PartitionOptions: overlay.PartitionOptions{
 			Offset: 2048 * 10,
@@ -61,46 +54,41 @@ func (i *RK3588Installer) GetOptions(extra rk3588ExtraOpts) (overlay.Options, er
 	}, nil
 }
 
-func (i *RK3588Installer) Install(options overlay.InstallOptions[rk3588ExtraOpts]) error {
-	if options.ExtraOptions.Board == "" {
-		return errors.New("board variant required")
-	}
-	if options.ExtraOptions.Chipset == "" {
-		return errors.New("chipset variant required")
+func (i *blade3Installer) Install(_ context.Context, options overlay.InstallOptions[blade3ExtraOptions]) error {
+	if !options.ExtraOptions.SPIBoot {
+		uBootBin := filepath.Join(options.ArtifactsPath, "arm64/u-boot/mixtile-blade3/u-boot-rockchip.bin")
+
+		if err := installUBoot(uBootBin, options.InstallDisk); err != nil {
+			return err
+		}
 	}
 
-	var f *os.File
-	f, err := os.OpenFile(options.InstallDisk, os.O_RDWR|unix.O_CLOEXEC, 0o666)
-	if err != nil {
-		return fmt.Errorf("opening install disk: %w", err)
-	}
-	defer f.Close() //nolint:errcheck
-
-	uboot, err := os.ReadFile(filepath.Join(options.ArtifactsPath, fmt.Sprintf("arm64/u-boot/mixtile-blade3/u-boot-rockchip.bin")))
-	if err != nil {
-		return fmt.Errorf("reading u-boot: %w", err)
-	}
-
-	if _, err = f.WriteAt(uboot, ubootOffset); err != nil {
-		return fmt.Errorf("writing u-boot: %w", err)
-	}
-
-	// NB: In the case that the block device is a loopback device, we sync here
-	// to ensure that the file is written before the loopback device is
-	// unmounted.
-	err = f.Sync()
-	if err != nil {
-		return err
-	}
-
-	dtb := filepath.Join("rockchip", fmt.Sprintf("rk3588-mixtile-blade3.dtb"))
 	src := filepath.Join(options.ArtifactsPath, "arm64/dtb", dtb)
-	dst := filepath.Join(options.MountPrefix, "/boot/EFI/dtb", dtb)
+	dst := filepath.Join(options.MountPrefix, "boot/EFI/dtb", dtb)
 
-	err = os.MkdirAll(filepath.Dir(dst), 0o600)
-	if err != nil {
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return err
 	}
 
 	return copy.File(src, dst)
+}
+
+func installUBoot(uBootBin, installDisk string) error {
+	f, err := os.OpenFile(installDisk, os.O_RDWR|unix.O_CLOEXEC, 0o666)
+	if err != nil {
+		return fmt.Errorf("opening install disk: %w", err)
+	}
+
+	defer f.Close() //nolint:errcheck
+
+	uBoot, err := os.ReadFile(uBootBin)
+	if err != nil {
+		return fmt.Errorf("reading U-Boot: %w", err)
+	}
+
+	if _, err = f.WriteAt(uBoot, uBootOffset); err != nil {
+		return fmt.Errorf("writing U-Boot: %w", err)
+	}
+
+	return f.Sync()
 }

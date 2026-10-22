@@ -6,7 +6,7 @@ string_mask = utf8only
 x509_extensions = myexts
 
 [ req_distinguished_name ]
-O = Unofficial Talos for RK3588
+O = Sidero Labs, Inc.
 CN = Build time throw-away kernel key
 #emailAddress = unspecified.user@unspecified.company
 

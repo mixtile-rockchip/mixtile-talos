@@ -1,20 +1,17 @@
-name: talos-sbc-mixtile-blade3
+name: sbc-mixtile-blade3
 variant: scratch
-shell: /toolchain/bin/bash
+shell: /bin/bash
 dependencies:
   - stage: base
-  - stage: kernel-mixtile-blade3
-    platform: linux/arm64
-  - stage: overlay-blade3
+  - stage: mixtile-blade3
     platform: linux/arm64
   - stage: profiles
-steps:
-  - prepare:
-      - |
-        mkdir -p /rootfs/artifacts/arm64/dtb/rockchip
-        mkdir -p /rootfs/artifacts/arm64/u-boot/mixtile-blade3
-        cp /dtb/rockchip/rk3588*.dtb /rootfs/artifacts/arm64/dtb/rockchip/
-        cp /pkg/output/u-boot-rockchip.bin /rootfs/artifacts/arm64/u-boot/mixtile-blade3/
+  - stage: u-boot-mixtile-blade3
+    platform: linux/arm64
+  - stage: dtb-mixtile-blade3
+    platform: linux/arm64
+    from: /dtb/rockchip/rk3588-mixtile-blade3.dtb
+    to: /rootfs/artifacts/arm64/dtb/rockchip/rk3588-mixtile-blade3.dtb
 finalize:
   - from: /rootfs
     to: /

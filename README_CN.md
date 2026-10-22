@@ -1,3 +1,5 @@
+> Current documentation (Talos v1.14.4, OpenMIOP for the Mixtile Cluster Box): [README.md](README.md). 最新文档请参阅 [README.md](README.md)。
+
 # 编译环境使用指南
 
 ## 1. 构建编译环境。

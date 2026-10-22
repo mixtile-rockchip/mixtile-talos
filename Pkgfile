@@ -1,3 +1,33 @@
-# syntax = ghcr.io/siderolabs/bldr:v0.3.0
+# syntax = ghcr.io/siderolabs/bldr:v0.6.1
 
 format: v1alpha2
+
+vars:
+  # renovate: datasource=github-tags depName=ARM-software/arm-trusted-firmware
+  arm_trusted_firmware_version: lts-v2.14.6
+  arm_trusted_firmware_sha256: bb15ce95447a987ca8acbaa45126a338671da3c330c41283e3ded969ff1501f2
+  arm_trusted_firmware_sha512: 0837049d583a0641b98a892bd83a0de7a28019386cedc87a53984d65aa027b85973215036bdda49ac40f486e1869182320da20ee3f517662434030d1d48f69a7
+
+  # renovate: datasource=github-tags extractVersion=^v(?<version>.*)$ depName=u-boot/u-boot
+  uboot_version: 2026.07
+  uboot_sha256: 78e8bfc382fe388f9b55aa1daf8c563522a037779b5d4c349d1415e381f1243e
+  uboot_sha512: 1292e1c15b75fde569efd1f983aa38e8db2e8b10b19de964886c4e80988922263bb862f5eb3b39f2051c5b28f43958f40b1f0e5c036de7fd862dc30b603cde5d
+
+  # renovate: datasource=git-refs versioning=git depName=https://github.com/rockchip-linux/rkbin.git
+  rkbin_ref: 74213af1e952c4683d2e35952507133b61394862
+  rkbin_sha256: b565faeab846950262c07e6debbd6519ea9e7f34943dbb305b9cea6b1026e11a
+  rkbin_sha512: 15245ca51b010edeae933b53a9aa9398552f2bdd65879d2bbbc147417999947e1d71aa29123302c7486976886ebf59867123abdcc2d77be6f566a96c242a5ca2
+
+  # Must match the kernel packaged by Talos v1.14.4 (PKGS v1.14.0-44-g2ec10eb).
+  linux_version: 6.18.57
+  linux_sha256: 5bd9acdc82ec5efc3790ae840e5aaa40dfde7efff261cf6dde902dc570acf98c
+  linux_sha512: 6d9b39bee05daf05849c0bacc7bd407b13f34882bd06f46dc8c69835e98aba762d41f81852b5af34728c5cf15832fecb047c01d182bf3b581e82921885653689
+
+  # openmiop (pcie-ep-net) driver for the Cluster Box PCIe fabric.
+  openmiop_version: 0.6.1-v1.14.4
+  openmiop_ref: a368e65e4077be4ae40a039ac60aad3b0db66d6a
+  openmiop_sha256: fa11639a7c5da1b3d38509b13e1267c54acfc58ee4729527c5f24773e8afbf40
+  openmiop_sha512: 51f610ed032d515523b6264536da3aa6cae00dc7c2b06ba29b29c475c180a94b29b3879bc2d3d2f56a484a2c74b7e5beae3a6c6c96e28cf03847ac483d882976
+
+labels:
+  org.opencontainers.image.source: https://github.com/mixtile-rockchip/mixtile-talos
